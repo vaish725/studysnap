@@ -2,18 +2,43 @@
 
 > Snap a photo of your notes. Get an instant quiz. Study smarter.
 
-Built for the **Build with Gemini** hackathon. Uses **Gemini 2.0 Flash** vision to read handwritten or printed notes and generate interactive quizzes.
+Built for the **Build with Gemini** hackathon. Uses **Gemini 2.5 Flash** vision to read handwritten or printed notes and generate interactive quizzes in seconds.
+
+![StudySnap — notes in, quiz out](imgs/studysnap_thumbnail.png)
+*Upload a photo of any notes and StudySnap instantly generates a ready-to-take quiz using Gemini Vision AI.*
 
 ---
 
 ## Features
 
 - **Photo → Quiz** — Upload any image of notes, textbooks, or whiteboards
-- **3 quiz modes** — Multiple choice, fill-in-the-blank, true/false
+- **4 quiz modes** — Multiple choice, fill-in-the-blank, true/false, or mixed
 - **3 difficulty levels** — Easy, Medium, Hard
 - **AI explanations** — Wrong answers get a Gemini-powered explanation
-- **Score summary** — Score ring, time taken, full answer breakdown
+- **Score summary** — Animated score ring, time taken, full answer breakdown
 - **Export** — Copy as text or download as PDF
+
+---
+
+## Demo
+
+### Input — Photo of handwritten notes
+
+![Handwritten notes on DNA Replication](imgs/input1.webp)
+*A photo of handwritten biology notes on DNA replication in prokaryotic cells — exactly the kind of content StudySnap is built for.*
+
+### Output — Generated quiz and results
+
+![Score summary screen](imgs/output1_1.jpeg)
+*After completing the quiz, StudySnap shows an animated score ring, correct/total count, and time taken. The topic title is extracted directly from the notes by Gemini.*
+
+![Answer breakdown with AI explanations](imgs/output1_2.jpeg)
+*The answer breakdown lists every question with the correct answer highlighted. For wrong answers, Gemini generates a concise, encouraging explanation shown in the amber panel.*
+
+![Full breakdown and export actions](imgs/output1_3.jpeg)
+*The full breakdown continues through all questions, each with its AI explanation. From here the student can copy the quiz as plain text, download a PDF, retry with the same questions, or start a new quiz.*
+
+---
 
 ## Tech Stack
 
@@ -21,7 +46,7 @@ Built for the **Build with Gemini** hackathon. Uses **Gemini 2.0 Flash** vision 
 |-------|------|
 | Frontend | React 18 + Vite + Tailwind CSS |
 | Backend | Node.js + Express |
-| AI | Gemini 2.0 Flash (Vision + Text) |
+| AI | Gemini 2.5 Flash (Vision + Text) |
 | Deploy | Google Cloud Run |
 | PDF | html2pdf.js (client-side) |
 
@@ -92,13 +117,14 @@ studysnap/
 │   │   └── main.jsx
 │   ├── index.html
 │   └── package.json
+├── imgs/                        # Demo screenshots
 ├── Dockerfile
 └── README.md
 ```
 
 ## How Gemini is Used
 
-1. **Image understanding** — `gemini-2.0-flash` reads the uploaded photo and extracts educational content using multimodal vision capabilities.
+1. **Image understanding** — `gemini-2.5-flash` reads the uploaded photo and extracts educational content using multimodal vision capabilities.
 2. **Structured quiz generation** — A carefully crafted prompt instructs Gemini to return valid JSON with questions tailored to the chosen mode and difficulty.
 3. **Adaptive explanations** — When a student answers incorrectly, a second Gemini call generates a personalized, encouraging explanation of the correct answer.
 
@@ -106,7 +132,7 @@ studysnap/
 
 ## Hackathon Submission Notes
 
-- **Gemini API use**: Multimodal (vision + text generation), structured output, multi-turn (quiz + explanations)
+- **Gemini API use**: Multimodal (vision + text generation), structured output, two distinct Gemini calls per session (quiz + explanations)
 - **Prize targets**: Best Use of Gemini API + Best App Deployed on Google Cloud
 - **Demo**: [Link to demo video]
 - **GitHub**: [This repo]
