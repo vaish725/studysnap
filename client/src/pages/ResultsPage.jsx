@@ -1,12 +1,16 @@
-import { useRef } from 'react';
-import { RotateCcw, Plus, Download, Copy, Check, Trophy, Clock, Target } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { RotateCcw, Plus, Download, Copy, Check, X, Trophy, Clock, Target } from 'lucide-react';
 
 function ScoreRing({ score }) {
   const r = 52;
   const circ = 2 * Math.PI * r;
-  const dash = (score / 100) * circ;
+  const [dash, setDash] = useState(0);
   const color = score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+
+  useEffect(() => {
+    const id = setTimeout(() => setDash((score / 100) * circ), 50);
+    return () => clearTimeout(id);
+  }, [score, circ]);
 
   return (
     <svg width="140" height="140" viewBox="0 0 140 140">
@@ -36,21 +40,22 @@ export default function ResultsPage({ results, quiz, config, onRetry, onNewQuiz 
   const printRef = useRef();
 
   const score = Math.round((results.correctCount / results.totalQuestions) * 100);
-  const grade = score >= 90 ? { label: 'Excellent!', emoji: '🏆' }
-              : score >= 70 ? { label: 'Good job!', emoji: '👏' }
-              : score >= 50 ? { label: 'Keep practicing', emoji: '💪' }
-              :               { label: 'Keep going!', emoji: '📚' };
+  const grade = score >= 90 ? { emoji: '🏆', label: 'Excellent!' }
+              : score >= 70 ? { emoji: '👏', label: 'Good job!' }
+              : score >= 50 ? { emoji: '💪', label: 'Keep practicing' }
+              :               { emoji: '📚', label: 'Keep going!' };
 
   function formatTime(s) {
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   }
 
   async function handleCopy() {
-    const lines = quiz.questions.map((q, i) =>
-      `Q${i + 1}: ${q.question}\nAnswer: ${
-        config.mode === 'mcq' ? q.options[q.correctAnswer] : q.correctAnswer
-      }\n`
-    );
+    const lines = quiz.questions.map((q, i) => {
+      const qMode = config.mode === 'mixed' ? (q.type || 'mcq') : config.mode;
+      return `Q${i + 1}: ${q.question}\nAnswer: ${
+        qMode === 'mcq' ? q.options[q.correctAnswer] : q.correctAnswer
+      }\n`;
+    });
     await navigator.clipboard.writeText(`${quiz.topic} — StudySnap Quiz\n\n${lines.join('\n')}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -60,7 +65,7 @@ export default function ResultsPage({ results, quiz, config, onRetry, onNewQuiz 
     try {
       const html2pdf = (await import('html2pdf.js')).default;
       html2pdf()
-        .set({ margin: 10, filename: `${quiz.topic}-quiz.pdf`, html2canvas: { scale: 2 } })
+        .set({ margin: 10, filename: `${quiz.topic.toLowerCase().replace(/\s+/g, '-')}-quiz.pdf`, html2canvas: { scale: 2 } })
         .from(printRef.current)
         .save();
     } catch (e) {
@@ -73,8 +78,7 @@ export default function ResultsPage({ results, quiz, config, onRetry, onNewQuiz 
     <div className="max-w-2xl mx-auto px-4 py-10">
       {/* Score card */}
       <div className="card p-8 text-center mb-4">
-        <div className="text-3xl mb-2">{grade.emoji}</div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-1">{grade.label}</h2>
+        <h2 className="text-2xl font-bold text-slate-900 mb-1">{grade.emoji} {grade.label}</h2>
         <p className="text-slate-500 mb-6 text-sm">{quiz.topic}</p>
 
         <div className="flex justify-center mb-6">
@@ -106,24 +110,25 @@ export default function ResultsPage({ results, quiz, config, onRetry, onNewQuiz 
         <div className="space-y-3">
           {quiz.questions.map((q, i) => {
             const correct = results.submitted[q.id];
+            const qMode = config.mode === 'mixed' ? (q.type || 'mcq') : config.mode;
             return (
               <div key={q.id} className={`rounded-xl p-4 border ${correct ? 'border-emerald-100 bg-emerald-50/50' : 'border-red-100 bg-red-50/50'}`}>
                 <div className="flex items-start gap-3">
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${correct ? 'bg-emerald-500' : 'bg-red-400'}`}>
-                    {correct ? <Check size={11} className="text-white" /> : <span className="text-white text-xs font-bold">✗</span>}
+                    {correct ? <Check size={11} className="text-white" /> : <X size={11} className="text-white" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-700 mb-1">Q{i + 1}. {q.question}</p>
                     <p className="text-xs text-slate-500">
                       Correct: <span className="font-medium text-slate-700">
-                        {config.mode === 'mcq'
+                        {qMode === 'mcq'
                           ? `${['A','B','C','D'][q.correctAnswer]}. ${q.options[q.correctAnswer]}`
                           : String(q.correctAnswer)}
                       </span>
                     </p>
-                    {!correct && q.explanation && (
+                    {!correct && (results.explanations?.[q.id] || q.explanation) && (
                       <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5 mt-2">
-                        {q.explanation}
+                        {results.explanations?.[q.id] || q.explanation}
                       </p>
                     )}
                   </div>

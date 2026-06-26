@@ -16,10 +16,11 @@ export default function QuizPage({ quiz, config, onComplete, onBack }) {
     return () => clearInterval(timer);
   }, []);
 
-  const question = quiz.questions[current];
-  const totalQ   = quiz.questions.length;
-  const isLast   = current === totalQ - 1;
-  const isAnswered = submitted[question.id] !== undefined;
+  const question      = quiz.questions[current];
+  const totalQ        = quiz.questions.length;
+  const isLast        = current === totalQ - 1;
+  const isAnswered    = submitted[question.id] !== undefined;
+  const effectiveMode = config.mode === 'mixed' ? (question.type || 'mcq') : config.mode;
 
   function formatTime(s) {
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -30,9 +31,7 @@ export default function QuizPage({ quiz, config, onComplete, onBack }) {
     const correct = question.correctAnswer;
     let isCorrect;
 
-    if (config.mode === 'mcq') {
-      isCorrect = userAnswer === correct;
-    } else if (config.mode === 'truefalse') {
+    if (effectiveMode === 'mcq' || effectiveMode === 'truefalse') {
       isCorrect = userAnswer === correct;
     } else {
       isCorrect = userAnswer.trim().toLowerCase() === String(correct).toLowerCase();
@@ -47,14 +46,15 @@ export default function QuizPage({ quiz, config, onComplete, onBack }) {
   async function fetchExplanation(q, userAnswer, correctAnswer) {
     setLoadingExp(true);
     try {
+      const qMode = config.mode === 'mixed' ? (q.type || 'mcq') : config.mode;
       const res = await fetch('/api/explain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: q.question,
-          userAnswer: config.mode === 'mcq' ? q.options[userAnswer] : String(userAnswer),
-          correctAnswer: config.mode === 'mcq' ? q.options[correctAnswer] : String(correctAnswer),
-          mode: config.mode,
+          userAnswer: qMode === 'mcq' ? q.options[userAnswer] : String(userAnswer),
+          correctAnswer: qMode === 'mcq' ? q.options[correctAnswer] : String(correctAnswer),
+          mode: qMode,
         }),
       });
       const data = await res.json();
@@ -77,6 +77,7 @@ export default function QuizPage({ quiz, config, onComplete, onBack }) {
     onComplete({
       answers,
       submitted,
+      explanations,
       totalQuestions: totalQ,
       correctCount: Object.values(submitted).filter(Boolean).length,
       timeSeconds: elapsed,
@@ -102,7 +103,7 @@ export default function QuizPage({ quiz, config, onComplete, onBack }) {
         </button>
         <div className="flex items-center gap-4 text-sm text-slate-500">
           <span className="font-medium text-slate-700">{quiz.topic}</span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" aria-label={`Elapsed time: ${formatTime(elapsed)}`}>
             <Clock size={14} />
             <span className="font-mono">{formatTime(elapsed)}</span>
           </div>
@@ -128,7 +129,7 @@ export default function QuizPage({ quiz, config, onComplete, onBack }) {
         </div>
 
         {/* MCQ */}
-        {config.mode === 'mcq' && (
+        {effectiveMode === 'mcq' && (
           <div className="space-y-2.5">
             {question.options.map((opt, idx) => (
               <button
@@ -153,7 +154,7 @@ export default function QuizPage({ quiz, config, onComplete, onBack }) {
         )}
 
         {/* True / False */}
-        {config.mode === 'truefalse' && (
+        {effectiveMode === 'truefalse' && (
           <div className="grid grid-cols-2 gap-3">
             {[true, false].map((val) => {
               const selected = answers[question.id] === val;
@@ -165,7 +166,7 @@ export default function QuizPage({ quiz, config, onComplete, onBack }) {
               else                 cls += 'border-slate-100 text-slate-400';
               return (
                 <button key={String(val)} onClick={() => checkAnswer(val)} disabled={isAnswered} className={cls}>
-                  <div className="text-2xl mb-1">{val ? '✓' : '✗'}</div>
+                  {val ? <Check size={20} className="mb-1" /> : <X size={20} className="mb-1" />}
                   {val ? 'True' : 'False'}
                 </button>
               );
@@ -174,7 +175,7 @@ export default function QuizPage({ quiz, config, onComplete, onBack }) {
         )}
 
         {/* Fill in the blank */}
-        {config.mode === 'fillblank' && (
+        {effectiveMode === 'fillblank' && (
           <div className="space-y-3">
             <input
               type="text"
@@ -218,7 +219,7 @@ export default function QuizPage({ quiz, config, onComplete, onBack }) {
                 <p className="text-xs font-medium text-amber-700 mb-1 flex items-center gap-1">
                   {loadingExp
                     ? <><Loader2 size={12} className="animate-spin" /> Getting explanation…</>
-                    : '💡 Explanation'}
+                    : 'Explanation'}
                 </p>
                 {!loadingExp && (
                   <p className="text-sm text-amber-800 leading-relaxed">

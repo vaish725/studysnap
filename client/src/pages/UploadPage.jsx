@@ -2,9 +2,10 @@ import { useState, useRef, useCallback } from 'react';
 import { Upload, Camera, BookOpen, Zap, ChevronRight, Loader2, X } from 'lucide-react';
 
 const MODES = [
-  { id: 'mcq',       label: 'Multiple choice', icon: '⓪', desc: '4 options per question' },
-  { id: 'fillblank', label: 'Fill in the blank', icon: '✏️', desc: 'Complete the sentence' },
-  { id: 'truefalse', label: 'True / False',      icon: '⚖️', desc: 'Quick fact check' },
+  { id: 'mcq',       label: 'Multiple choice',   desc: '4 options per question' },
+  { id: 'fillblank', label: 'Fill in the blank',  desc: 'Complete the sentence' },
+  { id: 'truefalse', label: 'True / False',       desc: 'Quick fact check' },
+  { id: 'mixed',     label: 'Mixed',              desc: 'All three types combined' },
 ];
 
 const DIFFICULTIES = [
@@ -29,6 +30,10 @@ export default function UploadPage({ onQuizReady }) {
       setError('Please upload an image file (JPG, PNG, WEBP, etc.)');
       return;
     }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image too large. Please use an image under 10 MB.');
+      return;
+    }
     setImage(file);
     setPreview(URL.createObjectURL(file));
     setError(null);
@@ -51,12 +56,22 @@ export default function UploadPage({ onQuizReady }) {
       form.append('difficulty', difficulty);
       form.append('questionCount', questionCount);
 
-      const res = await fetch('/api/generate-quiz', { method: 'POST', body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Generation failed');
-      onQuizReady(data.quiz, { mode, difficulty, questionCount });
+      const controller = new AbortController();
+      const abortTimer = setTimeout(() => controller.abort(), 70000);
+      try {
+        const res = await fetch('/api/generate-quiz', { method: 'POST', body: form, signal: controller.signal });
+        if (!res.ok) {
+          let message = `Server error (${res.status}). Is the server running?`;
+          try { message = (await res.json()).error || message; } catch {}
+          throw new Error(message);
+        }
+        const data = await res.json();
+        onQuizReady(data.quiz, { mode, difficulty, questionCount });
+      } finally {
+        clearTimeout(abortTimer);
+      }
     } catch (err) {
-      setError(err.message);
+      setError(err.name === 'AbortError' ? 'Request timed out. Please try again.' : err.message);
     } finally {
       setLoading(false);
     }
@@ -137,17 +152,17 @@ export default function UploadPage({ onQuizReady }) {
         {/* Mode */}
         <div>
           <label className="text-sm font-medium text-slate-700 mb-3 block">Quiz type</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {MODES.map((m) => (
               <button
                 key={m.id}
                 onClick={() => setMode(m.id)}
-                className={`p-3 rounded-xl border text-left transition-all
+                disabled={loading}
+                className={`p-3 rounded-xl border text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed
                   ${mode === m.id
                     ? 'border-brand-500 bg-brand-50'
                     : 'border-slate-200 hover:border-slate-300 bg-white'}`}
               >
-                <div className="text-lg mb-1">{m.icon}</div>
                 <div className={`text-xs font-medium ${mode === m.id ? 'text-brand-700' : 'text-slate-700'}`}>{m.label}</div>
                 <div className="text-xs text-slate-400 mt-0.5">{m.desc}</div>
               </button>
@@ -163,7 +178,8 @@ export default function UploadPage({ onQuizReady }) {
               <button
                 key={d.id}
                 onClick={() => setDifficulty(d.id)}
-                className={`flex-1 py-2 rounded-xl border text-sm font-medium transition-all
+                disabled={loading}
+                className={`flex-1 py-2 rounded-xl border text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed
                   ${difficulty === d.id ? d.color : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
               >
                 {d.label}
@@ -185,7 +201,8 @@ export default function UploadPage({ onQuizReady }) {
             step={1}
             value={questionCount}
             onChange={(e) => setQuestionCount(Number(e.target.value))}
-            className="w-full accent-brand-500"
+            disabled={loading}
+            className="w-full accent-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <div className="flex justify-between text-xs text-slate-400 mt-1">
             <span>3 quick</span>
@@ -203,6 +220,7 @@ export default function UploadPage({ onQuizReady }) {
       <button
         onClick={handleGenerate}
         disabled={!image || loading}
+        aria-busy={loading}
         className="btn-primary w-full flex items-center justify-center gap-2 text-base py-3.5"
       >
         {loading ? (

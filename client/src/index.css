@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-pulse-soft {
+    animation: none !important;
+  }
+}
+
 @layer base {
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
